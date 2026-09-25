@@ -4,6 +4,7 @@ set -euo pipefail
 script_dir="${0:A:h}"
 source_file="$script_dir/disk_ejection.applescript"
 helper_file="$script_dir/disk_ejection.sh"
+icon_file="$script_dir/assets/AppIcon.icns"
 dist_dir="$script_dir/dist"
 app_path="$dist_dir/Disk Ejector.app"
 installed_app_path="/Applications/disk ejection.app"
@@ -24,6 +25,10 @@ esac
 /bin/mkdir -p "$dist_dir"
 /usr/bin/osacompile -o "$app_path" "$source_file"
 /usr/bin/install -m 755 "$helper_file" "$app_path/Contents/Resources/disk_ejection.sh"
+/usr/bin/install -m 644 "$icon_file" "$app_path/Contents/Resources/applet.icns"
+# macOS prefers Assets.car (the generic script icon) over applet.icns, so remove it.
+/bin/rm -f "$app_path/Contents/Resources/Assets.car"
+/usr/libexec/PlistBuddy -c 'Delete :CFBundleIconName' "$app_path/Contents/Info.plist" 2>/dev/null || true
 
 if ! /usr/libexec/PlistBuddy -c \
 	'Add :CFBundleIdentifier string io.github.macos-disk-ejector' \
