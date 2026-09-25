@@ -1,5 +1,11 @@
 # Disk Ejector for macOS
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) ![macOS 12+](https://img.shields.io/badge/macOS-12%2B-blue.svg)
+
+Safely eject an external drive when your Mac says “The disk wasn't ejected because one or more programs may be using it” — without using Force Eject.
+
+<img src="assets/screenshot-choose-drive.png" alt="Disk Ejector's drive list" width="452">
+
 ## 1. What This Is
 
 Users who store their main Photos Library (with iCloud sync on) on an external drive may find that the drive remains busy and cannot be ejected normally, even after they have closed the relevant windows and applications. This can happen because macOS search, photo-analysis, and iCloud Photos services may continue using the library in the background.
@@ -64,3 +70,7 @@ Disk Ejector first asks macOS to perform a normal eject. If that fails, the app 
 - `build_disk_ejection.sh` builds and signs the app.
 
 This project is available under the MIT License. See [LICENSE](LICENSE).
+
+---
+
+If Disk Ejector saved you from Force Eject, a ⭐ will help me a long way.
