@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Disk Ejector app icon: original artwork, MIT licensed like the rest of the project.
+       The soft drop shadow under the rounded square is added when rendering to PNG/ICNS. -->
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4C8DFF"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="drive" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#D8E0EC"/>
+    </linearGradient>
+    <radialGradient id="driveShadow">
+      <stop offset="0" stop-color="#0A2466" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#0A2466" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Rounded square -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#background)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#gloss)"/>
+
+  <!-- External drive -->
+  <ellipse cx="512" cy="724" rx="330" ry="40" fill="url(#driveShadow)"/>
+  <rect x="212" y="312" width="600" height="400" rx="84" fill="url(#drive)"/>
+  <rect x="252" y="636" width="520" height="8" rx="4" fill="#C9D2E0"/>
+  <circle cx="752" cy="676" r="13" fill="#30D158"/>
+
+  <!-- Eject symbol -->
+  <polygon points="512,384 626,506 398,506" fill="#2A62E8" stroke="#2A62E8" stroke-width="24" stroke-linejoin="round"/>
+  <rect x="386" y="540" width="252" height="48" rx="12" fill="#2A62E8"/>
+</svg>
