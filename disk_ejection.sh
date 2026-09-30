@@ -8,6 +8,8 @@ readonly -a SERVICE_NAMES=(
 	mediaanalysisd
 	managedcorespotlightd
 	cloudphotod
+	PhotosReliveWidget
+	"Siri AI"
 )
 
 typeset ACTIVE_CHILD_PID=""

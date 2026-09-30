@@ -51,8 +51,8 @@ set_plist_string() {
 
 set_plist_string CFBundleName "Disk Ejector"
 set_plist_string CFBundleDisplayName "Disk Ejector"
-set_plist_string CFBundleShortVersionString "1.0.0"
-set_plist_string CFBundleVersion "1"
+set_plist_string CFBundleShortVersionString "1.0.1"
+set_plist_string CFBundleVersion "2"
 
 /usr/bin/xattr -cr "$app_path"
 /usr/bin/codesign --force --deep --sign - "$app_path"

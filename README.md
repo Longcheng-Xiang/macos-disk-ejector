@@ -46,7 +46,7 @@ Disk Ejector requires macOS 12 Monterey or later.
 
 There is some risk involved with using this app. Its behavior sits between the standard macOS eject method, which is the safest option, and Force Eject, which may cause lost or damaged files.
 
-Disk Ejector never force-unmounts or force-ejects a drive. However, asking background photo services to stop may interrupt ongoing analysis or syncing. Before using the app, close applications related to the drive and avoid using it during an active photo import, export, or synchronization.
+Disk Ejector never force-unmounts or force-ejects a drive. However, asking background services to stop may interrupt ongoing photo analysis or syncing, or briefly interrupt Siri. Before using the app, close applications related to the drive and avoid using it during an active photo import, export, or synchronization.
 
 When you have your main Photos Library on an external drive, you will often find that it is impossible to eject that drive normally. Disk Ejector was created as a convenient way to stop those services temporarily and retry the normal macOS eject method.
 
@@ -54,7 +54,7 @@ When you have your main Photos Library on an external drive, you will often find
 
 The following explains how exactly the app works for more technically inclined persons.
 
-Disk Ejector first asks macOS to perform a normal eject. If that fails, the app sends a normal `TERM` signal to the following per-user search and photo-analysis services before retrying up to five times:
+Disk Ejector first asks macOS to perform a normal eject. If that fails, the app sends a normal `TERM` signal to the following per-user search, photo and Siri services before retrying up to five times:
 
 - `Spotlight`
 - `photoanalysisd`
@@ -62,6 +62,10 @@ Disk Ejector first asks macOS to perform a normal eject. If that fails, the app 
 - `mediaanalysisd`
 - `managedcorespotlightd`
 - `cloudphotod`
+- `PhotosReliveWidget`
+- `Siri AI`
+
+On macOS 27, the Photos widget (`PhotosReliveWidget`) and `Siri AI` can also keep the Photos Library open.
 
 `TERM` is a request for a process to exit cleanly; it is not a force-kill signal. macOS can start these services again when they are needed. Disk Ejector does not disable them permanently, force-quit ordinary applications, or force-unmount the drive. Applications such as Finder, Terminal, Photos, or Blender can still prevent ejection when they have files open on the selected drive.
 
