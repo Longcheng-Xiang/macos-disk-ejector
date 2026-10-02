@@ -1,0 +1,40 @@
+name: Attach app to release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and attach (for example v1.0.1)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # The app opens on the macOS version it was built on or later, so build on the oldest supported runner.
+    runs-on: macos-15
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Build Disk Ejector
+        run: ./build_disk_ejection.sh
+
+      - name: Show supported processors and minimum macOS
+        run: |
+          lipo -archs "dist/Disk Ejector.app/Contents/MacOS/applet"
+          otool -l "dist/Disk Ejector.app/Contents/MacOS/applet" | grep -A4 LC_BUILD_VERSION
+
+      - name: Zip the app
+        run: ditto -c -k --keepParent "dist/Disk Ejector.app" Disk-Ejector.zip
+
+      - name: Attach to the release
+        run: gh release upload "$TAG" Disk-Ejector.zip --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
