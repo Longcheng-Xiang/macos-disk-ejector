@@ -1,6 +1,6 @@
 # Disk Ejector for macOS
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) ![macOS 12+](https://img.shields.io/badge/macOS-12%2B-blue.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) ![macOS 15.7+](https://img.shields.io/badge/macOS-15.7%2B-blue.svg)
 
 Safely eject an external drive when your Mac says “The disk wasn't ejected because one or more programs may be using it” — without using Force Eject.
 
@@ -14,27 +14,12 @@ Disk Ejector provides a one-click way to deal with this. When you click **Eject*
 
 ## 2. Installation
 
-Disk Ejector requires macOS 12 Monterey or later.
+Disk Ejector requires macOS Sequoia 15.7 or later.
 
-1. On the GitHub repository page, select **Code**, then **Download ZIP**.
-2. Open the downloaded ZIP file to extract the project folder.
-3. Open **Terminal** from **Applications > Utilities**.
-4. Type `cd` followed by a space, but do not press Return yet.
-5. Drag the extracted project folder from Finder into the Terminal window. This adds the correct folder path automatically. Now press Return.
-6. Run the following commands:
-
-   ```zsh
-   chmod +x build_disk_ejection.sh
-   ./build_disk_ejection.sh
-   ```
-
-7. When Terminal shows a line starting with `Built:`, run:
-
-   ```zsh
-   open dist
-   ```
-
-8. Finder will open the `dist` folder. Drag **Disk Ejector.app** into your **Applications** folder.
+1. Download [Disk-Ejector.zip](https://github.com/Longcheng-Xiang/macos-disk-ejector/releases/latest/download/Disk-Ejector.zip).
+2. If your browser hasn't already done so, open the downloaded ZIP file. Then drag **Disk Ejector.app** into your **Applications** folder.
+3. Open Disk Ejector. Because it isn't notarized (checked by Apple for a yearly fee), macOS will say it could not verify the app. Click **Done**.
+4. Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to the message about Disk Ejector. Click **Open Anyway** again when asked, and confirm with your password or Touch ID. You only need to do this once.
 
 ## 3. Using The App
 
