@@ -24,7 +24,7 @@ jobs:
           ref: ${{ env.TAG }}
 
       - name: Build Disk Ejector
-        run: ./build_disk_ejection.sh
+        run: DISK_EJECTOR_VERSION="${TAG#v}" ./build_disk_ejection.sh
 
       - name: Show supported processors and minimum macOS
         run: |

@@ -5,15 +5,20 @@ on run
 	set appTitle to "Disk Ejector"
 	set helperPath to POSIX path of (path to resource "disk_ejection.sh")
 	set appProcessIdentifier to (current application's NSProcessInfo's processInfo()'s processIdentifier()) as integer
+	set currentVersion to my appVersion()
+	set updateArgument to ""
+	if currentVersion is not "0.0.0" then set updateArgument to " check-updates"
+	set latestVersion to ""
 
 	set listStatusFile to do shell script "/usr/bin/mktemp /tmp/macos-disk-ejector.XXXXXX"
-	set listCommand to quoted form of helperPath & " list-async " & quoted form of listStatusFile & " " & appProcessIdentifier & " >/dev/null 2>&1 &"
+	set listCommand to quoted form of helperPath & " list-async " & quoted form of listStatusFile & " " & appProcessIdentifier & updateArgument & " >/dev/null 2>&1 &"
 
 	try
 		do shell script listCommand
 		set listStatus to my waitForDriveList(listStatusFile)
 		if listStatus is "list:success" then
 			set driveData to do shell script "/bin/cat " & quoted form of (listStatusFile & ".result")
+			set latestVersion to do shell script "/bin/cat " & quoted form of (listStatusFile & ".update") & " 2>/dev/null || true"
 		else
 			my cancelEjection(helperPath, listStatusFile)
 			my cleanUpStatusFile(helperPath, listStatusFile)
@@ -31,6 +36,7 @@ on run
 	end try
 
 	my cleanUpStatusFile(helperPath, listStatusFile)
+	my offerUpdate(latestVersion, currentVersion, appTitle)
 
 	if driveData is "" then
 		activate
@@ -104,6 +110,26 @@ on run
 		display dialog volumeLabel & " could not be safely ejected." & return & return & "A file or application may still be using the drive. Close related applications and Finder windows, then try again." with title appTitle buttons {"OK"} default button "OK" with icon caution
 	end if
 end run
+
+on appVersion()
+	try
+		return (current application's NSBundle's mainBundle()'s objectForInfoDictionaryKey:"CFBundleShortVersionString") as text
+	on error
+		return "0.0.0"
+	end try
+end appVersion
+
+on offerUpdate(latestVersion, currentVersion, appTitle)
+	if latestVersion is "" or currentVersion is "0.0.0" then return
+	considering numeric strings
+		if latestVersion is less than or equal to currentVersion then return
+	end considering
+	try
+		activate
+		display dialog "Disk Ejector " & latestVersion & " is available. You have version " & currentVersion & "." with title appTitle buttons {"Not Now", "Download"} default button "Download" cancel button "Not Now"
+		open location "https://github.com/Longcheng-Xiang/macos-disk-ejector/releases/latest"
+	end try
+end offerUpdate
 
 on parseDriveData(driveData)
 	set oldDelimiters to AppleScript's text item delimiters

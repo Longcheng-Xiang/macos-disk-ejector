@@ -22,6 +22,12 @@ case "${1:-}" in
 		;;
 esac
 
+version="${DISK_EJECTOR_VERSION:-0.0.0}"
+if [[ ! "$version" =~ '^[0-9]+(\.[0-9]+){0,2}$' ]]; then
+	print -u2 "Invalid DISK_EJECTOR_VERSION: $version"
+	exit 64
+fi
+
 /bin/mkdir -p "$dist_dir"
 /usr/bin/osacompile -o "$app_path" "$source_file"
 /usr/bin/install -m 755 "$helper_file" "$app_path/Contents/Resources/disk_ejection.sh"
@@ -51,8 +57,8 @@ set_plist_string() {
 
 set_plist_string CFBundleName "Disk Ejector"
 set_plist_string CFBundleDisplayName "Disk Ejector"
-set_plist_string CFBundleShortVersionString "1.0.1"
-set_plist_string CFBundleVersion "2"
+set_plist_string CFBundleShortVersionString "$version"
+set_plist_string CFBundleVersion "$version"
 
 /usr/bin/xattr -cr "$app_path"
 /usr/bin/codesign --force --deep --sign - "$app_path"

@@ -11,6 +11,7 @@ readonly -a SERVICE_NAMES=(
 	PhotosReliveWidget
 	"Siri AI"
 )
+readonly RELEASES_URL="https://github.com/Longcheng-Xiang/macos-disk-ejector/releases"
 
 typeset ACTIVE_CHILD_PID=""
 typeset ACTIVE_STATUS_FILE=""
@@ -230,6 +231,7 @@ list_drives() {
 list_drives_async() {
 	local status_file="$1"
 	local parent_pid="$2"
+	local check_updates="${3:-}"
 	local result_file="${status_file}.result"
 
 	valid_status_file "$status_file" || return 64
@@ -238,6 +240,9 @@ list_drives_async() {
 	ACTIVE_STATUS_FILE="$status_file"
 	print -r -- "$$" > "${status_file}.pid"
 	write_status "$status_file" scanning
+	if [[ "$check_updates" == check-updates ]]; then
+		latest_version > "${status_file}.update" &!
+	fi
 
 	if list_drives > "$result_file"; then
 		write_status "$status_file" "list:success"
@@ -245,6 +250,18 @@ list_drives_async() {
 		write_status "$status_file" "list:failure"
 		return 1
 	fi
+}
+
+latest_version() {
+	local location
+	local tag
+
+	location="$(/usr/bin/curl -fsI --max-time 3 "$RELEASES_URL/latest" 2>/dev/null \
+		| /usr/bin/awk 'tolower($1) == "location:" { print $2 }' \
+		| /usr/bin/tr -d '\r')"
+	tag="${${location##*/}#v}"
+	[[ "$tag" =~ '^[0-9]+(\.[0-9]+)*$' ]] && print -r -- "$tag"
+	return 0
 }
 
 valid_status_file() {
@@ -377,7 +394,7 @@ handle_termination() {
 		write_status "$ACTIVE_STATUS_FILE" cancelled || true
 		(
 			/bin/sleep 2
-			/bin/rm -f "$ACTIVE_STATUS_FILE" "${ACTIVE_STATUS_FILE}.next" "${ACTIVE_STATUS_FILE}.pid" "${ACTIVE_STATUS_FILE}.result"
+			/bin/rm -f "$ACTIVE_STATUS_FILE" "${ACTIVE_STATUS_FILE}.next" "${ACTIVE_STATUS_FILE}.pid" "${ACTIVE_STATUS_FILE}.result" "${ACTIVE_STATUS_FILE}.update"
 		) </dev/null >/dev/null 2>&1 &!
 	fi
 
@@ -405,7 +422,7 @@ cancel_ejection() {
 cleanup_status_file() {
 	local status_file="$1"
 	valid_status_file "$status_file" || return 64
-	/bin/rm -f "$status_file" "${status_file}.next" "${status_file}.pid" "${status_file}.result"
+	/bin/rm -f "$status_file" "${status_file}.next" "${status_file}.pid" "${status_file}.result" "${status_file}.update"
 }
 
 trap handle_termination HUP INT TERM
@@ -416,8 +433,12 @@ case "${1:-}" in
 		list_drives
 		;;
 	list-async)
-		[[ $# -eq 3 ]] || exit 64
-		list_drives_async "$2" "$3"
+		[[ $# -eq 3 || $# -eq 4 ]] || exit 64
+		list_drives_async "$2" "$3" "${4:-}"
+		;;
+	latest-version)
+		[[ $# -eq 1 ]] || exit 64
+		latest_version
 		;;
 	eject)
 		[[ $# -eq 4 ]] || exit 64
@@ -432,7 +453,7 @@ case "${1:-}" in
 		cleanup_status_file "$2"
 		;;
 	*)
-		print -u2 "Usage: ${0:t} {list|list-async STATUS_FILE APP_PID|eject DISK_ID STATUS_FILE APP_PID|cancel STATUS_FILE|cleanup STATUS_FILE}"
+		print -u2 "Usage: ${0:t} {list|list-async STATUS_FILE APP_PID [check-updates]|latest-version|eject DISK_ID STATUS_FILE APP_PID|cancel STATUS_FILE|cleanup STATUS_FILE}"
 		exit 64
 		;;
 esac
