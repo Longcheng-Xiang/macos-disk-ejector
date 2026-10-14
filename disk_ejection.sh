@@ -281,6 +281,7 @@ write_status() {
 
 try_eject() {
 	local disk_id="$1"
+	local keep_stopping="${2:-}"
 	local eject_pid
 	local eject_status
 	local ticks=0
@@ -303,6 +304,7 @@ try_eject() {
 			ACTIVE_CHILD_PID=""
 			return 1
 		fi
+		[[ "$keep_stopping" == keep-stopping ]] && stop_interfering_services
 		/bin/sleep 0.25
 		(( ticks += 1 ))
 	done
@@ -349,10 +351,9 @@ eject_drive() {
 		fi
 
 		write_status "$status_file" "retry:$attempt"
-		stop_interfering_services
-		responsive_sleep 1
+		suppress_services 1
 
-		if try_eject "$disk_id"; then
+		if try_eject "$disk_id" keep-stopping; then
 			write_status "$status_file" success
 			return 0
 		fi
@@ -367,13 +368,16 @@ parent_app_is_running() {
 	/bin/kill -0 "$PARENT_APP_PID" 2>/dev/null
 }
 
-responsive_sleep() {
+# Repeat the stop request: a service macOS restarts at once (such as Siri AI)
+# then cannot be restarted again for 10 seconds, which leaves time to eject.
+suppress_services() {
 	local seconds="$1"
 	local ticks=$(( seconds * 10 ))
 	local tick
 
 	for (( tick = 1; tick <= ticks; tick += 1 )); do
 		parent_app_is_running || handle_termination
+		stop_interfering_services
 		/bin/sleep 0.1
 	done
 }
