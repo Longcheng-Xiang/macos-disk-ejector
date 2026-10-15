@@ -13,6 +13,7 @@ readonly -a SERVICE_NAMES=(
 )
 readonly RELEASES_URL="https://github.com/Longcheng-Xiang/macos-disk-ejector/releases"
 readonly LOG_FILE="$HOME/Library/Logs/Disk Ejector.log"
+readonly LOG_MAX_LINES=100
 
 typeset ACTIVE_CHILD_PID=""
 typeset ACTIVE_STATUS_FILE=""
@@ -337,20 +338,17 @@ eject_drive() {
 	ACTIVE_STATUS_FILE="$status_file"
 	EJECT_OUTPUT_FILE="${status_file}.output"
 	print -r -- "$$" > "${status_file}.pid"
-	log_line "Ejecting $disk_id"
 	if ! is_ejectable_external_physical_disk "$disk_id"; then
-		log_line "  the drive is no longer available"
 		write_status "$status_file" unavailable
 		return 1
 	fi
 
 	write_status "$status_file" normal
 	if try_eject "$disk_id"; then
-		log_line "  ejected on the first attempt"
 		write_status "$status_file" success
 		return 0
 	fi
-	log_line "  first attempt failed: $(eject_message full)"
+	log_line "Ejecting $disk_id: first attempt failed: $(eject_message full)"
 
 	for attempt in {1..5}; do
 		if ! is_ejectable_external_physical_disk "$disk_id"; then
@@ -446,8 +444,12 @@ mount_points_for_disk() {
 	done < <(/sbin/mount)
 }
 
+# Notes ejects that ran into trouble, keeping only the most recent lines.
 log_line() {
-	print -r -- "$(/bin/date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOG_FILE" 2>/dev/null || true
+	print -r -- "$(/bin/date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOG_FILE" 2>/dev/null || return 0
+	if (( $(/usr/bin/wc -l < "$LOG_FILE") > LOG_MAX_LINES )); then
+		/usr/bin/tail -n "$LOG_MAX_LINES" "$LOG_FILE" > "${LOG_FILE}.tmp" && /bin/mv -f "${LOG_FILE}.tmp" "$LOG_FILE"
+	fi
 }
 
 parent_app_is_running() {
