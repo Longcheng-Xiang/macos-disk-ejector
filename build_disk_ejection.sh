@@ -7,7 +7,7 @@ helper_file="$script_dir/disk_ejection.sh"
 icon_file="$script_dir/assets/AppIcon.icns"
 dist_dir="$script_dir/dist"
 app_path="$dist_dir/Disk Ejector.app"
-installed_app_path="/Applications/disk ejection.app"
+installed_app_path="/Applications/Disk Ejector.app"
 install_app=false
 
 case "${1:-}" in
@@ -67,6 +67,7 @@ set_plist_string CFBundleVersion "$version"
 print "Built: $app_path"
 
 if [[ "$install_app" == true ]]; then
+	/bin/rm -rf "$installed_app_path"
 	/usr/bin/ditto "$app_path" "$installed_app_path"
 	/usr/bin/xattr -cr "$installed_app_path"
 	/usr/bin/codesign --force --deep --sign - "$installed_app_path"
