@@ -76,9 +76,11 @@ on run
 	set progress description to "Ejecting " & volumeLabel
 	set progress additional description to "Trying a normal eject..."
 
+	set ejectReason to ""
 	try
 		do shell script launchCommand
 		set finalStatus to my waitForEjection(statusFile)
+		set ejectReason to do shell script "/bin/cat " & quoted form of (statusFile & ".reason") & " 2>/dev/null || true"
 	on error errorMessage number errorNumber
 		if errorNumber is -128 then
 			my cancelEjection(helperPath, statusFile)
@@ -106,8 +108,10 @@ on run
 		display dialog "Ejecting " & volumeLabel & " is taking longer than expected." & return & return & "The operation was left running safely in the background. Wait a little longer and check Finder before disconnecting the drive." with title appTitle buttons {"OK"} default button "OK" with icon caution
 	else if finalStatus is "cancelled" then
 		display dialog "The eject attempt was stopped." & return & return & "The drive has not been reported as safely ejected. Do not disconnect it yet." with title appTitle buttons {"OK"} default button "OK" with icon caution
-	else
+	else if ejectReason is "" then
 		display dialog volumeLabel & " could not be safely ejected." & return & return & "A file or application may still be using the drive. Close related applications and Finder windows, then try again." with title appTitle buttons {"OK"} default button "OK" with icon caution
+	else
+		display dialog volumeLabel & " could not be safely ejected." & return & return & ejectReason & return & return & "Close related applications and Finder windows, then try again." with title appTitle buttons {"OK"} default button "OK" with icon caution
 	end if
 end run
 

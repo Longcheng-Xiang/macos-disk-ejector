@@ -12,6 +12,7 @@ readonly -a SERVICE_NAMES=(
 	"Siri AI"
 )
 readonly RELEASES_URL="https://github.com/Longcheng-Xiang/macos-disk-ejector/releases"
+readonly LOG_FILE="$HOME/Library/Logs/Disk Ejector.log"
 
 typeset ACTIVE_CHILD_PID=""
 typeset ACTIVE_STATUS_FILE=""
@@ -21,6 +22,7 @@ typeset DISKUTIL_PLIST=""
 typeset EXTERNAL_PHYSICAL_PLIST=""
 typeset RESOLVED_WHOLE_DISK=""
 typeset RESOLVED_PHYSICAL_PLIST=""
+typeset EJECT_OUTPUT_FILE=""
 
 diskutil_info_plist() {
 	local target="$1"
@@ -287,7 +289,7 @@ try_eject() {
 	local ticks=0
 	local max_ticks=60
 
-	/usr/sbin/diskutil eject "/dev/$disk_id" >/dev/null 2>&1 &
+	/usr/sbin/diskutil eject "/dev/$disk_id" > "${EJECT_OUTPUT_FILE:-/dev/null}" 2>&1 &
 	eject_pid=$!
 	ACTIVE_CHILD_PID="$eject_pid"
 
@@ -302,6 +304,7 @@ try_eject() {
 			/bin/kill -TERM "$eject_pid" 2>/dev/null || true
 			wait "$eject_pid" 2>/dev/null || true
 			ACTIVE_CHILD_PID=""
+			[[ -n "$EJECT_OUTPUT_FILE" ]] && print -r -- "No answer from macOS within 15 seconds." >> "$EJECT_OUTPUT_FILE"
 			return 1
 		fi
 		[[ "$keep_stopping" == keep-stopping ]] && stop_interfering_services
@@ -332,20 +335,26 @@ eject_drive() {
 	[[ "$parent_pid" =~ '^[0-9]+$' ]] || return 64
 	PARENT_APP_PID="$parent_pid"
 	ACTIVE_STATUS_FILE="$status_file"
+	EJECT_OUTPUT_FILE="${status_file}.output"
 	print -r -- "$$" > "${status_file}.pid"
+	log_line "Ejecting $disk_id"
 	if ! is_ejectable_external_physical_disk "$disk_id"; then
+		log_line "  the drive is no longer available"
 		write_status "$status_file" unavailable
 		return 1
 	fi
 
 	write_status "$status_file" normal
 	if try_eject "$disk_id"; then
+		log_line "  ejected on the first attempt"
 		write_status "$status_file" success
 		return 0
 	fi
+	log_line "  first attempt failed: $(eject_message full)"
 
 	for attempt in {1..5}; do
 		if ! is_ejectable_external_physical_disk "$disk_id"; then
+			log_line "  the drive is no longer available"
 			write_status "$status_file" unavailable
 			return 1
 		fi
@@ -354,13 +363,91 @@ eject_drive() {
 		suppress_services 1
 
 		if try_eject "$disk_id" keep-stopping; then
+			log_line "  ejected on retry $attempt"
 			write_status "$status_file" success
 			return 0
 		fi
+		log_line "  retry $attempt failed: $(eject_message full)"
 	done
 
+	write_reason "$disk_id" "$status_file"
 	write_status "$status_file" failure
 	return 1
+}
+
+# Explains a failed eject for the app: what still has files open on the drive,
+# and macOS's own reason.
+write_reason() {
+	local disk_id="$1"
+	local status_file="$2"
+	local holders
+	local message
+
+	holders="$(drive_holders "$disk_id")"
+	message="$(eject_message)"
+	log_line "  gave up${holders:+; still using the drive: $holders}"
+	{
+		[[ -n "$holders" ]] && print -r -- "Still using the drive: $holders"
+		[[ -n "$message" ]] && print -r -- "macOS said: $message"
+	} > "${status_file}.reason"
+}
+
+# macOS's answer to the last eject attempt, on one line: just who refused,
+# or everything macOS said when called with "full".
+eject_message() {
+	local text
+
+	[[ -s "$EJECT_OUTPUT_FILE" ]] || return 0
+	if [[ "${1:-}" == full ]]; then
+		text="$(/usr/bin/grep -v '^[[:space:]]*$' "$EJECT_OUTPUT_FILE")"
+	else
+		text="$(/usr/bin/grep -i 'dissented by' "$EJECT_OUTPUT_FILE" | /usr/bin/head -1)"
+		[[ -n "$text" ]] || text="$(/usr/bin/grep -v '^[[:space:]]*$' "$EJECT_OUTPUT_FILE" | /usr/bin/tail -1)"
+	fi
+	text="$(print -r -- "$text" | /usr/bin/sed -E 's#\(/[^)]*/([^/)]+)\)#(\1)#g' | /usr/bin/paste -sd ';' - | /usr/bin/sed -E 's/;/; /g; s/[[:space:]]+$//')"
+	print -r -- "${text[1,300]}"
+}
+
+# This user's processes that still have files open on the drive's volumes.
+drive_holders() {
+	local disk_id="$1"
+	local mount_points
+
+	mount_points="$(mount_points_for_disk "$disk_id")"
+	[[ -n "$mount_points" ]] || return 0
+	/usr/sbin/lsof -n -P -w +c 0 -F cn 2>/dev/null | MOUNT_POINTS="$mount_points" /usr/bin/awk '
+		BEGIN { count = split(ENVIRON["MOUNT_POINTS"], points, "\n") }
+		/^c/ { command = substr($0, 2) }
+		/^n/ {
+			name = substr($0, 2)
+			for (i = 1; i <= count; i += 1) {
+				if (name == points[i] || index(name, points[i] "/") == 1) found[command] = 1
+			}
+		}
+		END {
+			for (command in found) list = list (list == "" ? "" : ", ") command
+			print list
+		}'
+}
+
+mount_points_for_disk() {
+	local disk_id="$1"
+	local mount_line
+	local volume_device
+	local mount_point
+
+	while IFS= read -r mount_line; do
+		[[ "$mount_line" =~ '^/dev/(disk[^ ]+) on (/Volumes/.+) \(' ]] || continue
+		volume_device="$match[1]"
+		mount_point="$match[2]"
+		diskutil_info_plist "/dev/$volume_device" || continue
+		resolve_physical_whole_disk "$DISKUTIL_PLIST" || continue
+		[[ "$RESOLVED_WHOLE_DISK" == "$disk_id" ]] && print -r -- "$mount_point"
+	done < <(/sbin/mount)
+}
+
+log_line() {
+	print -r -- "$(/bin/date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOG_FILE" 2>/dev/null || true
 }
 
 parent_app_is_running() {
@@ -398,7 +485,7 @@ handle_termination() {
 		write_status "$ACTIVE_STATUS_FILE" cancelled || true
 		(
 			/bin/sleep 2
-			/bin/rm -f "$ACTIVE_STATUS_FILE" "${ACTIVE_STATUS_FILE}.next" "${ACTIVE_STATUS_FILE}.pid" "${ACTIVE_STATUS_FILE}.result" "${ACTIVE_STATUS_FILE}.update"
+			/bin/rm -f "$ACTIVE_STATUS_FILE" "${ACTIVE_STATUS_FILE}.next" "${ACTIVE_STATUS_FILE}.pid" "${ACTIVE_STATUS_FILE}.result" "${ACTIVE_STATUS_FILE}.update" "${ACTIVE_STATUS_FILE}.output" "${ACTIVE_STATUS_FILE}.reason"
 		) </dev/null >/dev/null 2>&1 &!
 	fi
 
@@ -426,7 +513,7 @@ cancel_ejection() {
 cleanup_status_file() {
 	local status_file="$1"
 	valid_status_file "$status_file" || return 64
-	/bin/rm -f "$status_file" "${status_file}.next" "${status_file}.pid" "${status_file}.result" "${status_file}.update"
+	/bin/rm -f "$status_file" "${status_file}.next" "${status_file}.pid" "${status_file}.result" "${status_file}.update" "${status_file}.output" "${status_file}.reason"
 }
 
 trap handle_termination HUP INT TERM
